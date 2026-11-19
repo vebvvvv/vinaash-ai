@@ -1,30 +1,6 @@
 import os
 import shutil
 from pathlib import Path
-
-# Auto-detect FFmpeg BEFORE importing yt_dlp
-POSSIBLE_FFMPEG_DIRS = [
-    Path(r"C:\ffmpeg\bin"),
-    Path(r"C:\ffmpeg"),
-    Path(r"C:\Program Files\ffmpeg\bin"),
-]
-
-FFMPEG_DIR = None
-found_ffmpeg = shutil.which("ffmpeg")
-if found_ffmpeg:
-    FFMPEG_DIR = Path(found_ffmpeg).resolve().parent
-else:
-    for d in POSSIBLE_FFMPEG_DIRS:
-        if (d / "ffmpeg.exe").is_file():
-            FFMPEG_DIR = d
-            break
-
-if FFMPEG_DIR:
-    os.environ["PATH"] = str(FFMPEG_DIR) + os.pathsep + os.environ.get("PATH", "")
-    FFMPEG = str(FFMPEG_DIR / "ffmpeg.exe")
-else:
-    FFMPEG = "ffmpeg"
-
 from flask import Flask, request, jsonify, send_from_directory
 from yt_dlp import YoutubeDL
 from urllib.parse import urlparse
@@ -35,15 +11,16 @@ import re
 import time
 import threading
 
+FFMPEG = shutil.which("ffmpeg") or "ffmpeg"
+
 app = Flask(__name__)
 
-BASE = Path(__file__).resolve().parent.parent
-INPUT = BASE / "input"
-OUTPUT = BASE / "output"
 APP_DIR = Path(__file__).resolve().parent
+INPUT = APP_DIR / "input"
+OUTPUT = APP_DIR / "output"
 
-INPUT.mkdir(exist_ok=True)
-OUTPUT.mkdir(exist_ok=True)
+INPUT.mkdir(parents=True, exist_ok=True)
+OUTPUT.mkdir(parents=True, exist_ok=True)
 
 PROGRESS = {
     "stage": "idle",
@@ -110,7 +87,6 @@ def to_seconds(value):
 
 
 def run_ffmpeg_with_progress(cmd, duration_sec, clip_index, total_clips, estimated_total_bytes):
-    """Runs FFmpeg and parses -progress pipe:1 in real time for the 04 UI panel."""
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -134,10 +110,7 @@ def run_ffmpeg_with_progress(cmd, duration_sec, clip_index, total_clips, estimat
 
         if key == "total_size" and val.isdigit():
             total_size = int(val)
-        elif key == "out_time_us" and val.isdigit():
-            out_time_sec = int(val) / 1_000_000.0
-        elif key == "out_time_ms" and val.isdigit():
-            # Fallback if out_time_us wasn't emitted
+        elif key in ("out_time_us", "out_time_ms") and val.isdigit():
             out_time_sec = int(val) / 1_000_000.0
 
         if key == "progress":
@@ -247,13 +220,22 @@ def cut_video():
             message="Resolving YouTube stream URLs..."
         )
 
-        # Extract stream URLs ONCE instead of every loop
+        # Android/iOS client bypass for cloud hosting (Render)
         ydl_opts = {
             "format": fmt,
             "noplaylist": True,
             "quiet": True,
             "no_warnings": True,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "ios", "web"],
+                    "player_skip": ["webpage", "configs"],
+                }
+            },
         }
+
+        if (APP_DIR / "cookies.txt").is_file():
+            ydl_opts["cookiefile"] = str(APP_DIR / "cookies.txt")
 
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -271,9 +253,7 @@ def cut_video():
             http_headers = info.get("http_headers") or {}
             bitrate_kbps = info.get("tbr") or 0
 
-        # Build HTTP headers for FFmpeg so YouTube doesn't return 403
         header_lines = "".join(f"{k}: {v}\r\n" for k, v in http_headers.items())
-
         results = []
 
         for index, (start, end) in enumerate(ranges, 1):
@@ -314,11 +294,7 @@ def cut_video():
                 cmd += ["-map", "0:v:0", "-map", "0:a?"]
 
             cmd += [
-                "-c:v", "libx264",
-                "-preset", "veryfast",
-                "-crf", "20",
-                "-c:a", "aac",
-                "-b:a", "192k",
+                "-c", "copy",
                 "-movflags", "+faststart",
                 str(temporary_output)
             ]
@@ -386,11 +362,10 @@ def download(filename):
 
 
 if __name__ == "__main__":
-    print(f"Detected FFmpeg at: {FFMPEG}")
-    print("VINAASH AI running at http://127.0.0.1:5000")
+    port = int(os.environ.get("PORT", 10000))
     app.run(
-        host="127.0.0.1",
-        port=5000,
+        host="0.0.0.0",
+        port=port,
         debug=False,
         threaded=True
     )
