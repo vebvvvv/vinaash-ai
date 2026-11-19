@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VINAASH AI — Studio Video Cutter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #07070c;
+    --surface: rgba(20, 20, 32, 0.72);
+    --surface-solid: #141420;
+    --surface-hover: #1c1c2c;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-focus: #8b5cf6;
+    --accent: #8b5cf6;
+    --accent-glow: rgba(139, 92, 246, 0.35);
+    --accent-secondary: #ec4899;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --danger: #ef4444;
+    --success: #10b981;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background-color: var(--bg);
+    background-image: 
+      radial-gradient(circle at 15% 10%, rgba(139, 92, 246, 0.14), transparent 35%),
+      radial-gradient(circle at 85% 85%, rgba(236, 72, 153, 0.10), transparent 35%);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    padding: 36px 20px 60px;
+    line-height: 1.5;
+  }
+
+  main {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #c4b5fd;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #a78bfa;
+    box-shadow: 0 0 8px #a78bfa;
+  }
+
+  h1 {
+    font-size: clamp(30px, 5vw, 42px);
+    font-weight: 800;
+    letter-spacing: 3px;
+    background: linear-gradient(135deg, #ffffff 20%, #c4b5fd 60%, #f472b6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-top: 6px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    transition: border-color 0.25s ease;
+  }
+
+  .card:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .step-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #e2e8f0;
+  }
+
+  .step-num {
+    background: rgba(139, 92, 246, 0.18);
+    color: #c4b5fd;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+  }
+
+  /* Inputs & Selects */
+  .input-group {
+    position: relative;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(10, 10, 18, 0.75);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+    background: rgba(15, 15, 26, 0.95);
+  }
+
+  input::placeholder {
+    color: #52526b;
+  }
+
+  .hint {
+    display: block;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  /* Video Preview Box */
+  .preview-wrap {
+    margin-top: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+    aspect-ratio: 16 / 9;
+    display: none;
+  }
+
+  .preview-wrap.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .preview-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  /* Timestamp Rows */
+  #clips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .clip-row {
+    display: grid;
+    grid-template-columns: 34px 1fr 1fr auto;
+    gap: 10px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    animation: slideIn 0.2s ease;
+  }
+
+  .clip-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .clip-row input {
+    font-family: 'JetBrains Mono', monospace;
+    text-align: center;
+    padding: 10px 12px;
+  }
+
+  /* Buttons */
+  button {
+    font-family: inherit;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .btn-secondary {
+    background: rgba(139, 92, 246, 0.14);
+    color: #c4b5fd;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.24);
+    border-color: #a78bfa;
+  }
+
+  .btn-remove {
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .btn-remove:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.22);
+    color: #fff;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 16px 24px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #fff;
+    background: linear-gradient(135deg, #7c3aed 0%, #9333ea 50%, #db2777 100%);
+    box-shadow: 0 8px 24px var(--accent-glow);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(139, 92, 246, 0.5);
+  }
+
+  /* Live Progress Section */
+  .live-panel {
+    background: rgba(10, 10, 18, 0.65);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+
+  .live-panel.hidden {
+    display: none;
+  }
+
+  .stage-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  #stage {
+    color: #e2e8f0;
+    font-weight: 600;
+  }
+
+  #percent-badge {
+    font-family: 'JetBrains Mono', monospace;
+    color: #c4b5fd;
+    font-weight: 600;
+  }
+
+  .track {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #8b5cf6, #ec4899);
+    border-radius: 999px;
+    transition: width 0.35s ease;
+    box-shadow: 0 0 12px rgba(236, 72, 153, 0.6);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .stat-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  .stat-box span {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 4px;
+  }
+
+  .stat-box strong {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: #f8fafc;
+  }
+
+  /* Status & Downloads */
+  #status {
+    margin-top: 14px;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    min-height: 20px;
+  }
+
+  #status.error { color: #f87171; }
+  #status.success { color: #34d399; }
+  #status.info { color: #c4b5fd; }
+
+  #results {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    padding: 12px 16px;
+    border-radius: 12px;
+    animation: slideIn 0.25s ease;
+  }
+
+  .result-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: #e2e8f0;
+  }
+
+  .download-btn {
+    background: var(--success);
+    color: #042f2e;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 8px;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .download-btn:hover {
+    background: #34d399;
+    transform: translateY(-1px);
+  }
+
+  footer {
+    text-align: center;
+    color: #52526b;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    margin-top: 28px;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @media (max-width: 640px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .clip-row { grid-template-columns: 1fr 1fr; }
+    .clip-badge { display: none; }
+    .btn-remove { grid-column: span 2; }
+  }
+</style>
+</head>
+
+<body>
+<main>
+  <header>
+    <div class="badge">Studio Engine v2.0</div>
+    <h1>VINAASH AI</h1>
+    <p class="subtitle">Precision Multi-Clip YouTube Extractor &amp; Trimmer</p>
+  </header>
+
+  <!-- 01 VIDEO SOURCE -->
+  <section class="card">
+    <div class="card-header">
+      <div class="step-title"><span class="step-num">01</span> VIDEO SOURCE</div>
+    </div>
+    <div class="input-group">
+      <input id="url" type="url" placeholder="Paste YouTube link (e.g., https://www.youtube.com/watch?v=...)" oninput="handleUrlPreview()">
+    </div>
+    <span class="hint">Supports youtube.com &amp; youtu.be links. Process only content you own or have rights to use.</span>
+
+    <div id="preview-wrap" class="preview-wrap">
+      <iframe id="yt-player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+  </section>
+
+  <!-- 02 QUALITY -->
+  <section class="card">
+    <div class="card-header">
+      <div class="step-title"><span class="step-num">02</span> OUTPUT RESOLUTION</div>
+    </div>
+    <select id="quality">
+      <option value="source">Original / Best Available Stream</option>
+      <option value="2160">4K Ultra HD — 2160p</option>
+      <option value="1440">2K QHD — 1440p</option>
+      <option value="1080" selected>Full HD — 1080p</option>
+      <option value="720">HD — 720p</option>
+      <option value="480">SD — 480p</option>
+      <option value="360">Data Saver — 360p</option>
+    </select>
+  </section>
+
+  <!-- 03 TIMESTAMPS -->
+  <section class="card">
+    <div class="card-header">
+      <div class="step-title"><span class="step-num">03</span> CLIP TIMESTAMPS</div>
+      <span class="hint" style="margin:0">Format: HH:MM:SS or MM:SS</span>
+    </div>
+
+    <div id="clips"></div>
+
+    <button type="button" class="btn-secondary" id="add-btn" onclick="addClip()">
+      + Add Another Clip
+    </button>
+  </section>
+
+  <!-- 04 EXPORT & LIVE TELEMETRY -->
+  <section class="card">
+    <div class="card-header">
+      <div class="step-title"><span class="step-num">04</span> RENDER &amp; EXPORT</div>
+    </div>
+
+    <div id="live" class="live-panel hidden">
+      <div class="stage-row">
+        <span id="stage">Preparing engine...</span>
+        <span id="percent-badge">0%</span>
+      </div>
+      <div class="track">
+        <div class="bar" id="bar"></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span>Clip Progress</span>
+          <strong id="clip">0 / 0</strong>
+        </div>
+        <div class="stat-box">
+          <span>Download Speed</span>
+          <strong id="speed">0 KB/s</strong>
+        </div>
+        <div class="stat-box">
+          <span>ETA</span>
+          <strong id="eta">--</strong>
+        </div>
+        <div class="stat-box">
+          <span>Downloaded</span>
+          <strong id="downloaded">0 B</strong>
+        </div>
+        <div class="stat-box">
+          <span>Est. Size</span>
+          <strong id="total">Unknown</strong>
+        </div>
+        <div class="stat-box">
+          <span>Overall</span>
+          <strong id="percent">0%</strong>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn-primary" id="cut" onclick="cutVideo()">
+      ✂ EXTRACT &amp; EXPORT CLIPS
+    </button>
+
+    <div id="status"></div>
+    <div id="results"></div>
+  </section>
+
+  <footer>VINAASH AI · LOCAL WORKSTATION EDITION</footer>
+</main>
+
+<script>
+let polling = false;
+
+function extractVideoId(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "youtu.be") return u.pathname.slice(1).split("/")[0];
+    if (u.hostname.includes("youtube.com")) {
+      if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/")[2];
+      return u.searchParams.get("v");
+    }
+  } catch (e) {}
+  return null;
+}
+
+function handleUrlPreview() {
+  const url = document.getElementById("url").value.trim();
+  const wrap = document.getElementById("preview-wrap");
+  const player = document.getElementById("yt-player");
+  const videoId = extractVideoId(url);
+
+  if (videoId && videoId.length === 11) {
+    const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+    if (player.src !== embedUrl) player.src = embedUrl;
+    wrap.classList.add("active");
+  } else {
+    wrap.classList.remove("active");
+    player.src = "";
+  }
+}
+
+function refreshClipIndices() {
+  const rows = document.querySelectorAll(".clip-row");
+  rows.forEach((row, idx) => {
+    row.querySelector(".clip-badge").textContent = `#${String(idx + 1).padStart(2, "0")}`;
+    row.querySelector(".btn-remove").disabled = rows.length <= 1;
+  });
+  document.getElementById("add-btn").disabled = rows.length >= 30;
+}
+
+function addClip(start = "", end = "") {
+  const container = document.getElementById("clips");
+  if (container.children.length >= 30) return;
+
+  const row = document.createElement("div");
+  row.className = "clip-row";
+
+  const badge = document.createElement("span");
+  badge.className = "clip-badge";
+
+  const startInput = document.createElement("input");
+  startInput.placeholder = "Start (00:01:20)";
+  startInput.value = start;
+  startInput.className = "start";
+
+  const endInput = document.createElement("input");
+  endInput.placeholder = "End (00:02:45)";
+  endInput.value = end;
+  endInput.className = "end";
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.textContent = "✕";
+  removeBtn.title = "Remove clip";
+  removeBtn.className = "btn-remove";
+  removeBtn.onclick = () => {
+    if (container.children.length > 1) {
+      row.remove();
+      refreshClipIndices();
+    }
+  };
+
+  row.append(badge, startInput, endInput, removeBtn);
+  container.appendChild(row);
+  refreshClipIndices();
+}
+
+addClip();
+
+function parseTimestamp(str) {
+  const parts = str.split(":");
+  if (parts.length < 2 || parts.length > 3 || !parts.every(p => /^\d+$/.test(p))) {
+    return null;
+  }
+  const nums = parts.map(Number);
+  const [h, m, s] = nums.length === 3 ? nums : [0, nums[0], nums[1]];
+  if (m >= 60 || s >= 60) return null;
+  return h * 3600 + m * 60 + s;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  let i = 0;
+  while (bytes >= 1024 && i < 3) {
+    bytes /= 1024;
+    i++;
+  }
+  return bytes.toFixed(2) + " " + units[i];
+}
+
+function formatSpeed(speed) {
+  return speed ? formatBytes(speed) + "/s" : "0 KB/s";
+}
+
+function formatTime(seconds) {
+  if (seconds === null || seconds === undefined) return "--";
+  seconds = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
+}
+
+function setStatus(text, type = "info") {
+  const status = document.getElementById("status");
+  status.textContent = text;
+  status.className = type;
+}
+
+function resetProgressUI(totalClips) {
+  document.getElementById("stage").textContent = "Initializing job...";
+  document.getElementById("bar").style.width = "0%";
+  document.getElementById("percent").textContent = "0%";
+  document.getElementById("percent-badge").textContent = "0%";
+  document.getElementById("speed").textContent = "0 KB/s";
+  document.getElementById("downloaded").textContent = "0 B";
+  document.getElementById("total").textContent = "Unknown";
+  document.getElementById("eta").textContent = "--";
+  document.getElementById("clip").textContent = `0 / ${totalClips}`;
+}
+
+async function updateProgress() {
+  if (!polling) return;
+  try {
+    const response = await fetch("/api/progress");
+    const p = await response.json();
+    const pct = (p.percent || 0) + "%";
+
+    document.getElementById("stage").textContent = p.message || p.stage;
+    document.getElementById("bar").style.width = pct;
+    document.getElementById("percent").textContent = pct;
+    document.getElementById("percent-badge").textContent = pct;
+    document.getElementById("speed").textContent = formatSpeed(p.speed);
+    document.getElementById("downloaded").textContent = formatBytes(p.downloaded);
+    document.getElementById("total").textContent = p.total ? formatBytes(p.total) : "Unknown";
+    document.getElementById("eta").textContent = formatTime(p.eta);
+    document.getElementById("clip").textContent = `${p.clip_index || 0} / ${p.clip_count || 0}`;
+  } catch (e) {
+    document.getElementById("stage").textContent = "Reconnecting to engine...";
+  }
+}
+
+async function pollProgress() {
+  polling = true;
+  document.getElementById("live").classList.remove("hidden");
+  while (polling) {
+    await updateProgress();
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+}
+
+async function cutVideo() {
+  const url = document.getElementById("url").value.trim();
+  const quality = document.getElementById("quality").value;
+  const results = document.getElementById("results");
+  const button = document.getElementById("cut");
+
+  const rows = [...document.querySelectorAll(".clip-row")];
+  const clips = rows.map(row => ({
+    start: row.querySelector(".start").value.trim(),
+    end: row.querySelector(".end").value.trim()
+  }));
+
+  if (!url) {
+    setStatus("Please paste a valid YouTube URL first.", "error");
+    return;
+  }
+
+  for (let i = 0; i < clips.length; i++) {
+    const startSec = parseTimestamp(clips[i].start);
+    const endSec = parseTimestamp(clips[i].end);
+    if (startSec === null || endSec === null) {
+      setStatus(`Clip #${i + 1}: Enter valid HH:MM:SS or MM:SS timestamps.`, "error");
+      return;
+    }
+    if (endSec <= startSec) {
+      setStatus(`Clip #${i + 1}: End timestamp must be greater than Start.`, "error");
+      return;
+    }
+  }
+
+  button.disabled = true;
+  button.textContent = "⏳ PROCESSING CLIPS...";
+  results.innerHTML = "";
+  setStatus("Connecting to VINAASH engine...", "info");
+
+  resetProgressUI(clips.length);
+  pollProgress();
+
+  try {
+    const response = await fetch("/api/cut", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, quality, clips })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Processing failed");
+
+    setStatus(data.message, "success");
+
+    data.clips.forEach(clip => {
+      const box = document.createElement("div");
+      box.className = "result-item";
+
+      const name = document.createElement("span");
+      name.className = "result-name";
+      name.textContent = clip.filename;
+
+      const link = document.createElement("a");
+      link.href = clip.url;
+      link.className = "download-btn";
+      link.textContent = "⬇ Download MP4";
+      link.download = clip.filename;
+
+      box.append(name, link);
+      results.appendChild(box);
+    });
+  } catch (error) {
+    setStatus("ERROR: " + error.message, "error");
+  } finally {
+    await updateProgress();
+    polling = false;
+    button.disabled = false;
+    button.textContent = "✂ EXTRACT & EXPORT CLIPS";
+  }
+}
+</script>
+</body>
+</html>
